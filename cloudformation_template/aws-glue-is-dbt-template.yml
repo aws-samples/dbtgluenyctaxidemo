@@ -1,0 +1,344 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: This cloudformation stack shows how to integrate dbt with AWS Glue Interactive Session
+
+Resources:
+  IamGlueRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: GlueInteractiveSessionRole
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lakeformation.amazonaws.com
+                - glue.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: GlueInteractiveSessionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowStatementInASessionToAUser
+                Action:
+                  - 'glue:ListSessions'
+                  - 'glue:GetSession'
+                  - 'glue:ListStatements'
+                  - 'glue:GetStatement'
+                  - 'glue:RunStatement'
+                  - 'glue:CancelStatement'
+                  - 'glue:DeleteSession'
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:session/*'
+              - Action:
+                  - 'glue:CreateSession'
+                Effect: Allow
+                Resource:
+                  - '*'
+              - Action:
+                  - 'iam:PassRole'
+                Effect: Allow
+                Resource: 'arn:aws:iam::*:role/GlueInteractiveSessionRole*'
+                Condition:
+                  StringLike:
+                    'iam:PassedToService':
+                      - glue.amazonaws.com
+              - Action:
+                  - 'iam:PassRole'
+                Effect: Allow
+                Resource:
+                  - 'arn:aws:iam::*:role/service-role/GlueInteractiveSessionRole*'
+                Condition:
+                  StringLike:
+                    'iam:PassedToService':
+                      - glue.amazonaws.com
+        - PolicyName: DbtGluePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - 'glue:SearchTables'
+                  - 'glue:BatchCreatePartition'
+                  - 'glue:CreatePartitionIndex'
+                  - 'glue:DeleteDatabase'
+                  - 'glue:GetTableVersions'
+                  - 'glue:GetPartitions'
+                  - 'glue:DeleteTableVersion'
+                  - 'glue:UpdateTable'
+                  - 'glue:DeleteTable'
+                  - 'glue:DeletePartitionIndex'
+                  - 'glue:GetTableVersion'
+                  - 'glue:UpdateColumnStatisticsForTable'
+                  - 'glue:CreatePartition'
+                  - 'glue:UpdateDatabase'
+                  - 'glue:CreateTable'
+                  - 'glue:GetTables'
+                  - 'glue:GetDatabases'
+                  - 'glue:GetTable'
+                  - 'glue:GetDatabase'
+                  - 'glue:GetPartition'
+                  - 'glue:UpdateColumnStatisticsForPartition'
+                  - 'glue:CreateDatabase'
+                  - 'glue:BatchDeleteTableVersion'
+                  - 'glue:BatchDeleteTable'
+                  - 'glue:DeletePartition'
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/*/*'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/*'
+              - Action:
+                  - 'lakeformation:UpdateResource'
+                  - 'lakeformation:ListResources'
+                  - 'lakeformation:BatchGrantPermissions'
+                  - 'lakeformation:GrantPermissions'
+                  - 'lakeformation:GetDataAccess'
+                  - 'lakeformation:GetTableObjects'
+                  - 'lakeformation:PutDataLakeSettings'
+                  - 'lakeformation:RevokePermissions'
+                  - 'lakeformation:ListPermissions'
+                  - 'lakeformation:BatchRevokePermissions'
+                  - 'lakeformation:UpdateTableObjects'
+                Effect: Allow
+                Resource:
+                  - '*'
+              - Action:
+                  - 's3:GetBucketLocation'
+                  - 's3:ListBucket'
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:s3:::aws-dbt-glue-datalake-${AWS::AccountId}-${AWS::Region}'
+                  - 'arn:aws:s3:::serverless-analytics'
+              - Action:
+                  - 's3:PutObject'
+                  - 's3:PutObjectAcl'
+                  - 's3:GetObject'
+                  - 's3:DeleteObject'
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:aws:s3:::aws-dbt-glue-datalake-${AWS::AccountId}-${AWS::Region}/*'
+              - Action:
+
+                  - 's3:GetObject'
+                Effect: Allow
+                Resource:
+                  - 'arn:aws:s3:::serverless-analytics/*'
+
+  TaxiDB:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Description: New York City Taxi and Limousine Commission (TLC) Trip Record Data database
+        Name: nyctaxi
+
+  TaxiTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref TaxiDB
+      TableInput:
+        Name: records
+        StorageDescriptor:
+          Columns:
+            - Name: vendorid
+              Type: string
+            - Name: pickup_datetime
+              Type: timestamp
+            - Name: dropoff_datetime
+              Type: timestamp
+            - Name: ratecode
+              Type: int
+            - Name: passenger_count
+              Type: int
+            - Name: trip_distance
+              Type: double
+            - Name: fare_amount
+              Type: double
+            - Name: total_amount
+              Type: double
+            - Name: payment_type
+              Type: int
+          Location: "s3://serverless-analytics/canonical/NY-Pub"
+          InputFormat: 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat'
+          OutputFormat: 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
+          SerdeInfo:
+            SerializationLibrary: 'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'
+            Parameters: {"serialization.format": "1"}
+        TableType: EXTERNAL_TABLE
+        PartitionKeys:
+          - Name: year
+            Type: string
+          - Name: month
+            Type: string
+          - Name: type
+            Type: string
+
+  DatalakeOutputS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+      BucketName: !Sub 'aws-dbt-glue-datalake-${AWS::AccountId}-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+
+  AthenaOutputS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+      BucketName: !Sub 'aws-athena-dbt-glue-query-results-${AWS::AccountId}-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+
+  AthenaWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: athena-dbt-glue-aws-blog
+      Description: WorkGroup used on the Athena dbt Glue blog post
+      RecursiveDeleteOption: true
+      State: ENABLED
+      Tags:
+        - Key: aws-blog
+          Value: athena-dbt-glue
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: true
+        ResultConfiguration:
+          EncryptionConfiguration:
+            EncryptionOption: SSE_S3
+          OutputLocation: !Sub s3://aws-athena-dbt-glue-query-results-${AWS::AccountId}-${AWS::Region}
+
+  CreatePartitionsFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - !Ref CreatePartitionsFunctionPolicy
+
+  CreatePartitionsFunctionPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties: 
+      Description: Provides access to create partitions to be used on the dbt AWS Glue blog post
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - logs:CreateLogGroup
+          - logs:CreateLogStream
+          - logs:PutLogEvents
+          Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}_dbt_glue_blog_partitions_creator'
+        - Effect: "Allow"
+          Action:
+            - "s3:GetBucketLocation"
+            - "s3:GetObject"
+            - "s3:ListBucket"
+            - "s3:ListBucketMultipartUploads"
+            - "s3:ListMultipartUploadParts"
+            - "s3:AbortMultipartUpload"
+            - "s3:PutObject"
+          Resource: 
+            - "arn:aws:s3:::aws-athena-dbt-glue-query-results-*"
+        - Effect: "Allow"
+          Action:
+            - "s3:ListBucket"
+          Resource: 
+            - "arn:aws:s3:::serverless-analytics"
+        - Effect: Allow
+          Action:
+          - "athena:GetWorkGroup"
+          - "athena:StartQueryExecution"
+          - "athena:StopQueryExecution"
+          - "athena:GetQueryExecution"
+          - "athena:GetQueryResults"
+          - "athena:GetQueryResultsStream"
+          Resource: 
+            - !Sub "arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/athena-dbt-glue-aws-blog"
+            - !Sub "arn:aws:athena:${AWS::Region}:${AWS::AccountId}:datacatalog/nyctaxi"
+        - Effect: "Allow"
+          Action:
+            - "glue:BatchCreatePartition"
+            - "glue:GetCatalogImportStatus"
+            - "glue:GetPartition"
+            - "glue:GetTables"
+            - "glue:GetPartitions"
+            - "glue:GetDatabases"
+            - "glue:GetDatabase"
+            - "glue:GetTable"
+          Resource: 
+            - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/nyctaxi"
+            - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/nyctaxi/records"
+            - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog"
+
+  CreatePartitionsFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}_dbt_glue_blog_partitions_creator"
+      Description: Creates Partitions on New York City Taxi and Limousine Commission (TLC) Trip Record Data database
+      Runtime: python3.7
+      Timeout: 300
+      Handler: index.handler
+      MemorySize: 128
+      Role: !GetAtt [ CreatePartitionsFunctionRole, Arn ]
+      Code:
+        ZipFile: !Sub |
+          import cfnresponse
+          import boto3
+          import logging
+          import os
+          from botocore.exceptions import ClientError
+
+          logging.basicConfig(level=os.environ.get('LOGLEVEL', 'INFO'))
+
+          logger = logging.getLogger()
+          REGION = os.getenv('region')
+
+          ATHENA_CLIENT = boto3.client('athena', region_name=REGION)
+
+          def handler(event, context):
+
+            try:
+              response = ATHENA_CLIENT.start_query_execution(
+                QueryString='MSCK REPAIR TABLE records',
+                QueryExecutionContext={
+                    'Database': 'nyctaxi'
+                },
+                WorkGroup='athena-dbt-glue-aws-blog'
+              )
+              
+              logger.info(f"Created partitions successfully: {response}")
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, {})
+            except Exception as e:
+                logger.error('Failed to create partititions due to %s', e)
+                cfnresponse.send(event, context, cfnresponse.FAILED, {}, {})
+            return {"statusCode": 200, "response": True}
+
+
+  PartitionsCreator:
+    Type: Custom::PartitionsCreator
+    DependsOn:
+    - AthenaWorkGroup
+    - TaxiTable
+    - TaxiDB
+    Properties:
+      ServiceToken: !GetAtt CreatePartitionsFunction.Arn

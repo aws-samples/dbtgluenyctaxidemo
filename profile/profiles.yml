@@ -1,0 +1,14 @@
+dbtgluenyctaxidemo:
+  target: dev
+  outputs:
+    dev:
+      type: glue
+      query-comment: demo-nyctaxi
+      role_arn: "{{ env_var('DBT_ROLE_ARN') }}"
+      region: us-east-1
+      workers: 5
+      worker_type: G.1X
+      schema: "dbt_nyc_metrics"
+      database: "dbt_nyc_metrics"
+      session_provisionning_timeout_in_seconds: 120
+      location: "{{ env_var('DBT_S3_LOCATION') }}"

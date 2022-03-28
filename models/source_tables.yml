@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: data_source
+    schema: nyctaxi
+
+    tables:
+      - name: records

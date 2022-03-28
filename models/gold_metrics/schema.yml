@@ -1,0 +1,60 @@
+version: 2
+
+models:
+  - name: gold_nyctaxi_passengers_metrics
+    description: This table has metrics per passenger based on NYC Taxi Open Data
+
+    columns:
+      - name: avg_cost_per_passenger
+        description: The average cost per passenger for a NYC Taxi trip
+
+      - name: avg_duration_per_passenger
+        description: The average number of passenger per NYC Taxi trip
+
+      - name: avg_trip_distance_per_passenger
+        description: The average NYC Taxi trip distance
+
+      - name: year
+        description: The year of the NYC Taxi trip
+
+      - name: month
+        description: The month of the NYC Taxi trip 
+
+      - name: type
+        description: The type of the NYC Taxi
+
+  - name: gold_nyctaxi_distance_metrics
+    description: This table has metrics per distance based on NYC Taxi Open Data
+
+    columns:
+      - name: avg_distance_per_duration
+        description: The average distance per minute of a NYC Taxi trip
+
+      - name: year
+        description: The year of the NYC Taxi trip
+
+      - name: month
+        description: The month of the NYC Taxi trip 
+
+      - name: type
+        description: The type of the NYC Taxi
+
+  - name: gold_nyctaxi_cost_metrics
+    description: This table has metrics per cost based on NYC Taxi Open Data
+
+    columns:
+      - name: avg_cost_per_distance
+        description: The average cost per distance of a NYC Taxi trip
+
+      - name: avg_cost_per_minute
+        description: The average cost per minute of a NYC Taxi trip
+
+      - name: year
+        description: The year of the NYC Taxi trip
+
+      - name: month
+        description: The month of the NYC Taxi trip 
+
+      - name: type
+        description: The type of the NYC Taxi
+        

@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: silver_nyctaxi_avg_metrics
+    description: This table has basic metrics based on NYC Taxi Open Data for the year 2016
+
+    columns:
+      - name: avg_duration
+        description: The average duration of a NYC Taxi trip
+
+      - name: avg_passenger_count
+        description: The average number of passenger per NYC Taxi trip
+
+      - name: avg_trip_distance
+        description: The average NYC Taxi trip distance
+
+      - name: avg_total_amount
+        description: The avarage amount of a NYC Taxi trip
+
+      - name: year
+        description: The year of the NYC Taxi trip
+
+      - name: month
+        description: The month of the NYC Taxi trip 
+
+      - name: type
+        description: The type of the NYC Taxi
+        
