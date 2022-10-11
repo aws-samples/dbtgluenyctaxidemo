@@ -86,6 +86,7 @@ Resources:
                   - 'glue:BatchDeleteTableVersion'
                   - 'glue:BatchDeleteTable'
                   - 'glue:DeletePartition'
+                  - 'glue:GetUserDefinedFunctions'
                 Effect: Allow
                 Resource:
                   - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog'
